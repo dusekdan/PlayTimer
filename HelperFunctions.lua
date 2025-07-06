@@ -1,0 +1,1 @@
+PTASavedVars = PTASavedVars or {}

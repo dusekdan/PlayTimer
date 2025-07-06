@@ -1,0 +1,122 @@
+-- Define the addon namespace
+local PlayTimerAddon = {}
+
+-- Persistent storage for time values and elapsed time
+PTASavedVars = {
+    totalTime = 0,  -- Total play time in seconds
+    elapsedTime = 0, -- Elapsed time in seconds
+    framePosition = { x = 0, y = 0 } -- Position of the timer frame
+}
+
+-- Parses the input string to convert it into total seconds
+local function parseTimeString(input)
+    local hours = string.match(input, "(%d+)h") or 0
+    local minutes = string.match(input, "(%d+)m") or 0
+    local seconds = string.match(input, "(%d+)s") or 0
+
+    return (tonumber(hours) * 3600) + (tonumber(minutes) * 60) + tonumber(seconds)
+end
+
+-- Updates the saved variables for total time and resets elapsed time
+function PlayTimerAddon:SetPlayTime(input)
+    local totalTime = parseTimeString(input)
+    if totalTime > 0 then
+        PTASavedVars.totalTime = totalTime
+        -- PTASavedVars.elapsedTime = 0 -- this line determines whether elapsedTime is reset when new totalTime is added
+        print("PlayTimer set to: " .. input)
+    else
+        print("Invalid time format. Please use 10h30m10s, 10h, or 30m.")
+    end
+end
+
+-- Create a small timer frame for displaying remaining time
+local timerFrame = CreateFrame("Frame", "PlayTimerFrame", UIParent)
+timerFrame:SetSize(150, 50)
+timerFrame:SetPoint("CENTER", UIParent, "CENTER", PTASavedVars.framePosition.x, PTASavedVars.framePosition.y)
+timerFrame:EnableMouse(true)
+timerFrame:SetMovable(true)
+timerFrame:RegisterForDrag("LeftButton")
+timerFrame:SetScript("OnDragStart", function(self)
+    self:StartMoving()
+end)
+timerFrame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local point, _, _, x, y = self:GetPoint()
+    PTASavedVars.framePosition.x = x
+    PTASavedVars.framePosition.y = y
+end)
+timerFrame:Hide()
+
+local timerText = timerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+timerText:SetPoint("CENTER")
+
+local function updateTimerFrame(remainingTime)
+    if remainingTime <= 0 then
+        timerFrame:Hide()
+    else
+        local hours = math.floor(remainingTime / 3600)
+        local minutes = math.floor((remainingTime % 3600) / 60)
+        local seconds = remainingTime % 60
+        timerText:SetText(string.format("%02dh %02dm %02ds", hours, minutes, seconds))
+        timerFrame:Show()
+    end
+end
+
+-- Updates elapsed time and displays the remaining time
+function PlayTimerAddon:UpdateAndDisplayTime()
+    PTASavedVars.elapsedTime = PTASavedVars.elapsedTime + 1
+    local remainingTime = PTASavedVars.totalTime - PTASavedVars.elapsedTime
+
+    if remainingTime <= 0 then
+        print("Your playtime is over!")
+    else
+        updateTimerFrame(remainingTime)
+    end
+end
+
+-- Command handler for /playtimer
+SLASH_PLAYTIMER1 = "/playtimer"
+SlashCmdList["PLAYTIMER"] = function(input)
+    if input and input ~= "" then
+        PlayTimerAddon:SetPlayTime(input)
+    else
+        print("Usage: /playtimer <time> (e.g., 10h30m10s, 10h, 30m)")
+    end
+end
+
+-- Start a ticker to update time every second
+local function startTimer()
+    if PlayTimerAddon.ticker then
+        PlayTimerAddon.ticker:Cancel()
+    end
+
+    PlayTimerAddon.ticker = C_Timer.NewTicker(1, function()
+        PlayTimerAddon:UpdateAndDisplayTime()
+    end)
+end
+
+
+-- Command handler for /playtimerdebug
+SLASH_PLAYTIMERDEBUG1 = "/playtimerdebug"
+SlashCmdList["PLAYTIMERDEBUG"] = function()
+    print(PTASavedVars.totalTime)
+    print(PTASavedVars.elapsedTime)
+end
+
+-- Erasing some of the PTa
+-- in game run
+-- /run PTASavedVars.elapsedTime = 0
+-- /run PTSavedVars.totalTime = 0
+
+-- Addon initialization
+function PlayTimerAddon:OnLoad()
+    PTASavedVars.totalTime = PTASavedVars.totalTime or 0
+    PTASavedVars.elapsedTime = PTASavedVars.elapsedTime or 0
+    PTASavedVars.framePosition = PTASavedVars.framePosition or { x = 0, y = 0 }
+    print("PlayTimer addon loaded.")
+    timerFrame:SetPoint("CENTER", UIParent, "CENTER", PTASavedVars.framePosition.x, PTASavedVars.framePosition.y)
+    startTimer()
+end
+
+
+PlayTimerAddon:OnLoad()
