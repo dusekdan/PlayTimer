@@ -2,24 +2,25 @@
 local PlayTimerAddon = {}
 
 -- Persistent storage for time values and elapsed time
+-- By the way - if saved vars are already found and loaded for the addon
+-- wow will overwrite the PTASavedVars with its own values and will not overwrite
+-- whatever I am putting here into the saved vars state
 PTASavedVars = {
     totalTime = 0,  -- Total play time in seconds
     elapsedTime = 0, -- Elapsed time in seconds
     framePosition = { x = 0, y = 0 } -- Position of the timer frame
 }
+-- 79.740 14.20
 
--- Parses the input string to convert it into total seconds
-local function parseTimeString(input)
-    local hours = string.match(input, "(%d+)h") or 0
-    local minutes = string.match(input, "(%d+)m") or 0
-    local seconds = string.match(input, "(%d+)s") or 0
-
-    return (tonumber(hours) * 3600) + (tonumber(minutes) * 60) + tonumber(seconds)
-end
+local PTASavedVarsDefaults = {
+    totalTime = 0,  -- Total play time in seconds
+    elapsedTime = 0, -- Elapsed time in seconds
+    framePosition = { x = 0, y = 0 } -- Position of the timer frame
+}
 
 -- Updates the saved variables for total time and resets elapsed time
 function PlayTimerAddon:SetPlayTime(input)
-    local totalTime = parseTimeString(input)
+    local totalTime = HelperFunc.parseTimeString(input)
     if totalTime > 0 then
         PTASavedVars.totalTime = totalTime
         -- PTASavedVars.elapsedTime = 0 -- this line determines whether elapsedTime is reset when new totalTime is added
@@ -32,7 +33,7 @@ end
 -- Create a small timer frame for displaying remaining time
 local timerFrame = CreateFrame("Frame", "PlayTimerFrame", UIParent)
 timerFrame:SetSize(150, 50)
-timerFrame:SetPoint("CENTER", UIParent, "CENTER", PTASavedVars.framePosition.x, PTASavedVars.framePosition.y)
+timerFrame:SetPoint("CENTER", UIParent, "CENTER")
 timerFrame:EnableMouse(true)
 timerFrame:SetMovable(true)
 timerFrame:RegisterForDrag("LeftButton")
@@ -42,8 +43,17 @@ end)
 timerFrame:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
     local point, _, _, x, y = self:GetPoint()
-    PTASavedVars.framePosition.x = x
-    PTASavedVars.framePosition.y = y
+
+    -- If framePosition doesn't exist inside the SavedVars, create it (empty)
+    --if PTASavedVars.framePosition == nil then
+    --    PTASavedVars.framePosition = {}
+    --end
+
+    -- Save the new position to the PTASavedVars
+    --PTASavedVars.framePosition.x = x
+    --PTASavedVars.framePosition.y = y
+
+    print("user placed x=" .. x .. ", y=" .. y)
 end)
 timerFrame:Hide()
 
@@ -110,11 +120,25 @@ end
 
 -- Addon initialization
 function PlayTimerAddon:OnLoad()
+
     PTASavedVars.totalTime = PTASavedVars.totalTime or 0
     PTASavedVars.elapsedTime = PTASavedVars.elapsedTime or 0
-    PTASavedVars.framePosition = PTASavedVars.framePosition or { x = 0, y = 0 }
+
+    --if PTASavedVars.framePosition == nil then
+    --    PTASavedVars.framePosition = {}
+    --    PTASavedVars.framePosition.x = PTASavedVarsDefaults.framePosition.x
+    --    PTASavedVars.framePosition.y = PTASavedVarsDefaults.framePosition.y
+    --end
+
+    -- Set the timer frame position to place manually
+    -- PTASavedVars.framePosition.x = PTASavedVars.framePosition.x
+    -- PTASavedVars.framePosition.y = PTASavedVars.framePosition.y
+
+
+
+
     print("PlayTimer addon loaded.")
-    timerFrame:SetPoint("CENTER", UIParent, "CENTER", PTASavedVars.framePosition.x, PTASavedVars.framePosition.y)
+    timerFrame:SetPoint("CENTER", UIParent, "CENTER")
     startTimer()
 end
 
