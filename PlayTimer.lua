@@ -18,7 +18,9 @@ local PTASavedVarsDefaults = {
 
 -- Updates the saved variables for total time and resets elapsed time
 function PlayTimerAddon:SetPlayTime(input)
+    print("SetPlayTime input", input)
     local totalTime = HelperFunc.parseTimeString(input)
+    print("totalTime ".. totalTime)
     if totalTime > 0 then
         PTASavedVars.totalTime = totalTime
         -- PTASavedVars.elapsedTime = 0 -- this line determines whether elapsedTime is reset when new totalTime is added
@@ -72,14 +74,72 @@ function PlayTimerAddon:UpdateAndDisplayTime()
     end
 end
 
--- Command handler for /playtimer
+-- Command handler for /playtimer 
 SLASH_PLAYTIMER1 = "/playtimer"
 SlashCmdList["PLAYTIMER"] = function(input)
-    if input and input ~= "" then
-        PlayTimerAddon:SetPlayTime(input)
-    else
-        print("Usage: /playtimer <time> (e.g., 10h30m10s, 10h, 30m)")
+
+    local commandVerbs = {"add", "reduce", "reset-completely", "pause",
+        "balance", "mode", "alert", "help"}
+
+    local args = {}
+    for parameter in string.gmatch(input, "%S+") do
+        table.insert(args, parameter)
     end
+
+
+    -- Debug outputs
+    if args[1] ~= nil then
+        print(args[1])
+    else 
+        print("arg1 was nil")
+    end
+
+    if args[2] ~= nil then
+        print(args[2])
+    else 
+        print("arg2 was nil")
+    end
+    -- /Debug outputs
+
+    local commandVerb = args[1]
+    if not commandVerb then
+        print("Usage: /playtimer <time> (e.g., 10h30m10s, 10h, 30m)")
+        print("Usage: /playtimer add|reduce <time>")
+        print("Use /playtimer help to print a complete list of commands.")
+        return
+    end
+
+    print("Command verb: ".. commandVerb)
+
+    if not HelperFunc.isInList(commandVerbs, string.lower(commandVerb)) then
+        print("Command verb not recognized... pass this straight to SetPlayTime() that does its own check.")
+        PlayTimerAddon:SetPlayTime(commandVerb)
+        return
+    end
+
+    -- Normalize the command verb (or time string, but the output shouldnt be affected)
+    commandVerb = string.lower(commandVerb)
+    
+    if commandVerb == "add" then
+        print("ADD ")
+        -- use same validation logic as in SetPlayTime() to decide what to do
+    elseif commandVerb == "reduce" then
+        print("REDUCE")
+    elseif commandVerb == "pause" then
+        print("PAUSE")
+    elseif commandVerb == "balance" then
+        print("BALANCE")
+    elseif commandVerb == "mode" then
+        print("MODE")
+    elseif commandVerb == "help" then
+        print("HELP")
+    elseif commandVerb == "alert" then
+        print("ALERT")
+    elseif commandVerb == "reset-completely" then
+        print("RESET-COMPLETELY")
+    end
+
+
 end
 
 -- Start a ticker to update time every second
