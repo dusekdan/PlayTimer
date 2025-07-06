@@ -8,14 +8,12 @@ local PlayTimerAddon = {}
 PTASavedVars = {
     totalTime = 0,  -- Total play time in seconds
     elapsedTime = 0, -- Elapsed time in seconds
-    framePosition = { x = 0, y = 0 } -- Position of the timer frame
 }
 -- 79.740 14.20
 
 local PTASavedVarsDefaults = {
     totalTime = 0,  -- Total play time in seconds
     elapsedTime = 0, -- Elapsed time in seconds
-    framePosition = { x = 0, y = 0 } -- Position of the timer frame
 }
 
 -- Updates the saved variables for total time and resets elapsed time
@@ -34,7 +32,7 @@ end
 local timerFrame = CreateFrame("Frame", "PlayTimerFrame", UIParent)
 timerFrame:SetSize(150, 50)
 timerFrame:SetPoint("CENTER", UIParent, "CENTER")
-timerFrame:EnableMouse(true)
+timerFrame:EnableMouse(true) -- Thanks to this Line, WoW will cache the position in its internal layout
 timerFrame:SetMovable(true)
 timerFrame:RegisterForDrag("LeftButton")
 timerFrame:SetScript("OnDragStart", function(self)
@@ -43,16 +41,6 @@ end)
 timerFrame:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
     local point, _, _, x, y = self:GetPoint()
-
-    -- If framePosition doesn't exist inside the SavedVars, create it (empty)
-    --if PTASavedVars.framePosition == nil then
-    --    PTASavedVars.framePosition = {}
-    --end
-
-    -- Save the new position to the PTASavedVars
-    --PTASavedVars.framePosition.x = x
-    --PTASavedVars.framePosition.y = y
-
     print("user placed x=" .. x .. ", y=" .. y)
 end)
 timerFrame:Hide()
@@ -123,18 +111,6 @@ function PlayTimerAddon:OnLoad()
 
     PTASavedVars.totalTime = PTASavedVars.totalTime or 0
     PTASavedVars.elapsedTime = PTASavedVars.elapsedTime or 0
-
-    --if PTASavedVars.framePosition == nil then
-    --    PTASavedVars.framePosition = {}
-    --    PTASavedVars.framePosition.x = PTASavedVarsDefaults.framePosition.x
-    --    PTASavedVars.framePosition.y = PTASavedVarsDefaults.framePosition.y
-    --end
-
-    -- Set the timer frame position to place manually
-    -- PTASavedVars.framePosition.x = PTASavedVars.framePosition.x
-    -- PTASavedVars.framePosition.y = PTASavedVars.framePosition.y
-
-
 
 
     print("PlayTimer addon loaded.")
