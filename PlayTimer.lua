@@ -1,76 +1,120 @@
 -- Define the addon namespace
 local PlayTimerAddon = {}
 
--- Persistent storage for time values and elapsed time
--- By the way - if saved vars are already found and loaded for the addon
--- wow will overwrite the PTASavedVars with its own values and will not overwrite
--- whatever I am putting here into the saved vars state
-PTASavedVars = {
-    totalTime = 0,  -- Total play time in seconds
-    elapsedTime = 0, -- Elapsed time in seconds
-}
--- 79.740 14.20
 
-local PTASavedVarsDefaults = {
-    totalTime = 0,  -- Total play time in seconds
-    elapsedTime = 0, -- Elapsed time in seconds
-}
+
+-- Create a small timer frame for displaying remaining time
+function PlayTimerAddon:InitAddonFrame()
+    self.addonName = "PlayTimer"
+    self.timerFrame = CreateFrame("Frame", "PlayTimerFrame", UIParent)
+    self.timerFrame:RegisterEvent("ADDON_LOADED")
+    self.timerFrame:SetScript("OnEvent", function(self, event, name)
+        if name == PlayTimerAddon.addonName and event == "ADDON_LOADED" then
+            PlayTimerAddon:OnLoad();
+
+            print("PlayTimer Addon Loaded...")
+        end
+        self:UnregisterEvent("ADDON_LOADED")
+    end)
+
+    self.timerFrame:SetSize(150, 50)
+    self.timerFrame:SetPoint("CENTER", UIParent, "CENTER")
+
+    self.timerFrame:EnableMouse(true) -- Thanks to this Line, WoW will cache the position in its internal layout
+    self.timerFrame:SetMovable(true)
+
+    self.timerFrame:RegisterForDrag("LeftButton")
+    self.timerFrame:SetScript("OnDragStart", function(self)
+        self:StartMoving()
+    end)
+    self.timerFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local point, _, _, x, y = self:GetPoint()
+        print("user placed x=" .. x .. ", y=" .. y)
+    end)
+
+    
+
+    self.timerText = self.timerFrame:CreateFontString(nil,
+        "OVERLAY", 
+        "GameFontNormalLarge"
+    )
+    self.timerText:SetPoint("CENTER")
+end
+
+PlayTimerAddon:InitAddonFrame()
+
+
+
+
+
+function PlayTimerAddon:UpdateTimerFrame(remainingTime)
+    if remainingTime <= 0 then
+        self.timerFrame:Hide()
+    else
+        local hours = math.floor(remainingTime / 3600)
+        local minutes = math.floor((remainingTime % 3600) / 60)
+        local seconds = remainingTime % 60
+        self.timerText:SetText(string.format("%02dh %02dm %02ds", hours, minutes, seconds))
+        self.timerFrame:Show()
+    end
+end
+
+-- Returns Timer Paused status based on current account/character mode
+function PlayTimerAddon:IsTimerPaused()
+    if (PTACharSavedVars.mode == "character") then
+        return PTACharSavedVars.isPaused
+    end
+
+    return PTASavedVars.isPaused
+end
+
 
 -- Updates the saved variables for total time and resets elapsed time
 function PlayTimerAddon:SetPlayTime(input)
+
+    local isCharacterMode = (PTACharSavedVars.mode == "character")
+
     print("SetPlayTime input", input)
     local totalTime = HelperFunc.parseTimeString(input)
     print("totalTime ".. totalTime)
     if totalTime > 0 then
-        PTASavedVars.totalTime = totalTime
-        -- PTASavedVars.elapsedTime = 0 -- this line determines whether elapsedTime is reset when new totalTime is added
+
+        if isCharacterMode then
+            PTACharSavedVars.totalTime = totalTime
+        else
+            PTASavedVars.totalTime = totalTime
+        end
+
         print("PlayTimer set to: " .. input)
     else
         print("Invalid time format. Please use 10h30m10s, 10h, or 30m.")
     end
 end
 
--- Create a small timer frame for displaying remaining time
-local timerFrame = CreateFrame("Frame", "PlayTimerFrame", UIParent)
-timerFrame:SetSize(150, 50)
-timerFrame:SetPoint("CENTER", UIParent, "CENTER")
-timerFrame:EnableMouse(true) -- Thanks to this Line, WoW will cache the position in its internal layout
-timerFrame:SetMovable(true)
-timerFrame:RegisterForDrag("LeftButton")
-timerFrame:SetScript("OnDragStart", function(self)
-    self:StartMoving()
-end)
-timerFrame:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    local point, _, _, x, y = self:GetPoint()
-    print("user placed x=" .. x .. ", y=" .. y)
-end)
-timerFrame:Hide()
-
-local timerText = timerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-timerText:SetPoint("CENTER")
-
-local function updateTimerFrame(remainingTime)
-    if remainingTime <= 0 then
-        timerFrame:Hide()
-    else
-        local hours = math.floor(remainingTime / 3600)
-        local minutes = math.floor((remainingTime % 3600) / 60)
-        local seconds = remainingTime % 60
-        timerText:SetText(string.format("%02dh %02dm %02ds", hours, minutes, seconds))
-        timerFrame:Show()
-    end
-end
 
 -- Updates elapsed time and displays the remaining time
 function PlayTimerAddon:UpdateAndDisplayTime()
-    PTASavedVars.elapsedTime = PTASavedVars.elapsedTime + 1
-    local remainingTime = PTASavedVars.totalTime - PTASavedVars.elapsedTime
+    if self:IsTimerPaused() then
+        return
+    end
+
+    local isCharacterMode = (PTACharSavedVars.mode == "character")
+
+
+    local remainingTime = 0
+    if isCharacterMode then
+        PTACharSavedVars.elapsedTime = PTACharSavedVars.elapsedTime + 1
+        remainingTime = PTACharSavedVars.totalTime - PTACharSavedVars.elapsedTime
+    else
+        PTASavedVars.elapsedTime = PTASavedVars.elapsedTime + 1
+        remainingTime = PTASavedVars.totalTime - PTASavedVars.elapsedTime
+    end
 
     if remainingTime <= 0 then
         print("Your playtime is over!")
     else
-        updateTimerFrame(remainingTime)
+        self:UpdateTimerFrame(remainingTime)
     end
 end
 
@@ -78,7 +122,9 @@ end
 SLASH_PLAYTIMER1 = "/playtimer"
 SlashCmdList["PLAYTIMER"] = function(input)
 
-    local commandVerbs = {"add", "reduce", "reset-completely", "pause",
+    local isCharacterMode = (PTACharSavedVars.mode == "character")
+
+    local commandVerbs = {"add", "reduce", "reset-timer", "pause",
         "balance", "mode", "alert", "help"}
 
     local args = {}
@@ -119,64 +165,174 @@ SlashCmdList["PLAYTIMER"] = function(input)
 
     -- Normalize the command verb (or time string, but the output shouldnt be affected)
     commandVerb = string.lower(commandVerb)
-    
+    local commandVerbParam = HelperFunc.NormalizeString(args[2])
+
     if commandVerb == "add" then
         print("ADD ")
         -- use same validation logic as in SetPlayTime() to decide what to do
     elseif commandVerb == "reduce" then
         print("REDUCE")
     elseif commandVerb == "pause" then
-        print("PAUSE")
+        if isCharacterMode then
+            PTACharSavedVars.isPaused = not PTACharSavedVars.isPaused
+        else
+            PTASavedVars.isPaused = not PTASavedVars.isPaused
+        end
+
+        print("Timer paused:" .. tostring(PTACharSavedVars.isPaused))
     elseif commandVerb == "balance" then
         print("BALANCE")
     elseif commandVerb == "mode" then
-        print("MODE")
+        if commandVerbParam ~= "account" and commandVerbParam ~= "character" then
+            HelperFunc.ShowUsageForVerb(commandVerb)
+
+            if commandVerbParam == "" then
+                print("Current mode".. PTACharSavedVars.mode)
+            end
+
+            return
+        end
+
+        local currentValue = PTACharSavedVars.mode
+        if currentValue == commandVerbParam then
+            print("Timer mode is already set this way.")
+            return
+        end
+
+        if commandVerbParam == "character" then
+            -- If there isn't time saved under PTACharSavedVars, inherit allocation
+            -- from the account SavedVar
+            if PTACharSavedVars.totalTime == 0 then
+                PTACharSavedVars.totalTime = PTASavedVars.totalTime
+                print("Total time allowed copied from account-wide settings, as character time is not set yet.")
+            end
+
+            -- ? Busines decision to make: 
+            -- Should the elapsedTime on character-bound timer reset, or is this 
+            -- undesired? User feedback necessary
+
+            -- Inheriting timer paused from account-wide setting
+            PTACharSavedVars.isPaused = PTASavedVars.isPaused
+
+            PTACharSavedVars.mode = "character" -- Flip the mode PTACharSavedVars
+
+            print("This character now has its own separate timer. Your other character timers remain unchanged.")
+            return
+        end
+
+        if commandVerbParam == "account" then
+            -- Flip the mode in Character SavedVars
+            PTACharSavedVars.mode = "account"
+
+            -- If account-wide allocation is exhausted, copy character-level allowance & tell the user
+            if PTASavedVars.elapsedTime >= PTASavedVars.totalTime then
+                print("Account-level time allowance is already exhausted. Copying current allowance to account allowance and switching the mode to account tracking.")
+                PTASavedVars.elapsedTime = PTACharSavedVars.elapsedTime
+                PTASavedVars.totalTime = PTACharSavedVars.totalTime
+            end
+
+            return
+        end
+
     elseif commandVerb == "help" then
-        print("HELP")
+        HelperFunc.ShowHelp()
+        return
     elseif commandVerb == "alert" then
         print("ALERT")
-    elseif commandVerb == "reset-completely" then
-        print("RESET-COMPLETELY")
+    elseif commandVerb == "reset-timer" then
+        if isCharacterMode then
+            PTACharSavedVars.totalTime = 36000
+            PTACharSavedVars.elapsedTime = 0
+            print("Character timer set to 10h, time spent playing reset back to 0.")
+        else
+            PTASavedVars.totalTime = 36000
+            PTASavedVars.elapsedTime = 0
+            print("Character timer set to 10h, time spent playing reset back to 0.")
+        end
     end
 
 
 end
 
+
+
+
+-- Addon initialization
+function PlayTimerAddon:OnLoad()
+    -- TL;DR: If some SavedVar/CharacterSavedVar doesn't have a value
+    -- default is loaded.
+    self:SafelyInitializeSavedVars()
+    self.timerFrame:SetPoint("CENTER", UIParent, "CENTER")
+    self:RegisterTimer()
+end
+
+
 -- Start a ticker to update time every second
-local function startTimer()
-    if PlayTimerAddon.ticker then
-        PlayTimerAddon.ticker:Cancel()
+function PlayTimerAddon:RegisterTimer()
+    if self.ticker then
+        self.ticker:Cancel()
     end
 
-    PlayTimerAddon.ticker = C_Timer.NewTicker(1, function()
+    self.ticker = C_Timer.NewTicker(1, function()
         PlayTimerAddon:UpdateAndDisplayTime()
     end)
 end
 
 
--- Command handler for /playtimerdebug
-SLASH_PLAYTIMERDEBUG1 = "/playtimerdebug"
-SlashCmdList["PLAYTIMERDEBUG"] = function()
-    print(PTASavedVars.totalTime)
-    print(PTASavedVars.elapsedTime)
+-- Every saved var that is not recognized, is `nil`.
+-- Since this was gradual development, I ended up with having SavedVars
+-- but not having all the keys in them. Normally, the procedure would be
+-- to check if the SavedVar is nil, then create empty table, and insert
+-- defaults in the table. From that point onwards, it would never be 
+-- overwritten by the client. But it's all over the place now, so I need a safe
+-- way to make sure everything is there. 
+function PlayTimerAddon:SafelyInitializeSavedVars()
+    local PTASavedVarsDefaults = {
+        totalTime = 36000,      -- Total play time in seconds
+        elapsedTime = 0,        -- Elapsed time in seconds
+        isPaused = false,       -- Timer will be running
+        mode = "account",       -- Account-wide mode 
+    }
+
+    -- Account-wide SavedVars
+    if PTASavedVars == nil then
+        PTASavedVars = {}
+    end
+
+    if PTASavedVars.elapsedTime == nil then
+        PTASavedVars.elapsedTime = PTASavedVarsDefaults.elapsedTime
+    end
+
+    if PTASavedVars.totalTime == nil then
+        PTASavedVars.totalTime = PTASavedVarsDefaults.totalTime
+    end
+
+    if PTASavedVars.isPaused == nil then
+        PTASavedVars.isPaused = PTASavedVarsDefaults.isPaused
+    end
+
+    if PTASavedVars.mode == nil then
+        PTASavedVars.mode = PTASavedVarsDefaults.mode
+    end
+
+    -- Character-tied Savedvars
+    if PTACharSavedVars == nil then
+        PTACharSavedVars = {}
+    end
+
+    if PTACharSavedVars.elapsedTime == nil then
+        PTACharSavedVars.elapsedTime = PTASavedVarsDefaults.elapsedTime
+    end
+
+    if PTACharSavedVars.totalTime == nil then
+        PTACharSavedVars.totalTime = PTASavedVarsDefaults.totalTime
+    end
+
+    if PTACharSavedVars.isPaused == nil then
+        PTACharSavedVars.isPaused = PTASavedVarsDefaults.isPaused
+    end
+
+    if PTACharSavedVars.mode == nil then
+        PTACharSavedVars.mode = PTASavedVarsDefaults.mode
+    end
 end
-
--- Erasing some of the PTa
--- in game run
--- /run PTASavedVars.elapsedTime = 0
--- /run PTSavedVars.totalTime = 0
-
--- Addon initialization
-function PlayTimerAddon:OnLoad()
-
-    PTASavedVars.totalTime = PTASavedVars.totalTime or 0
-    PTASavedVars.elapsedTime = PTASavedVars.elapsedTime or 0
-
-
-    print("PlayTimer addon loaded.")
-    timerFrame:SetPoint("CENTER", UIParent, "CENTER")
-    startTimer()
-end
-
-
-PlayTimerAddon:OnLoad()

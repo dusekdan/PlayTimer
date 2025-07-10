@@ -4,5 +4,6 @@
 ## Author: IllegalPrime
 ## Version: 0.1
 ## SavedVariables: PTASavedVars
+## SavedVariablesPerCharacter: PTACharSavedVars
 HelperFunctions.lua
 PlayTimer.lua
