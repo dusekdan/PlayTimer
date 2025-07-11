@@ -47,7 +47,6 @@ PlayTimerAddon:InitAddonFrame()
 
 
 
-
 function PlayTimerAddon:UpdateTimerFrame(remainingTime)
     if remainingTime <= 0 then
         self.timerFrame:Hide()
@@ -210,9 +209,6 @@ SlashCmdList["PLAYTIMER"] = function(input)
             -- ? Busines decision to make: 
             -- Should the elapsedTime on character-bound timer reset, or is this 
             -- undesired? User feedback necessary
-
-            -- Inheriting timer paused from account-wide setting
-            PTACharSavedVars.isPaused = PTASavedVars.isPaused
 
             PTACharSavedVars.mode = "character" -- Flip the mode PTACharSavedVars
 
