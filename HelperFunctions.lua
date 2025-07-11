@@ -34,6 +34,9 @@ function HelperFunc.ShowUsageForVerb(verb)
     if verb == "mode" then
         print("Usage /playtimer mode account OR /playtimer mode character")
         return
+    elseif verb == "add" then
+        print("Usage: /playtimer add <time> (e.g., 10h30m10s, 10h, 30m)")
+        return
     end
 
     print("Usage: /playtimer <time> (e.g., 10h30m10s, 10h, 30m)")

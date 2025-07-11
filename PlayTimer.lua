@@ -193,6 +193,19 @@ SlashCmdList["PLAYTIMER"] = function(input)
 
     if commandVerb == "add" then
         print("ADD ")
+        local timeToAdd = HelperFunc.parseTimeString(commandVerbParam)
+        if commandVerbParam == "" or timeToAdd <= 0 then
+            HelperFunc.ShowUsageForVerb(commandVerb)
+            return
+        end
+
+        if isCharacterMode then
+            PTACharSavedVars.totalTime = PTACharSavedVars.totalTime + timeToAdd
+        else
+            PTASavedVars.totalTime = PTASavedVars.totalTime + timeToAdd
+        end
+
+        print("Time added. Enjoy it, while it lasts!")
         -- use same validation logic as in SetPlayTime() to decide what to do
     elseif commandVerb == "reduce" then
         print("REDUCE")
@@ -211,7 +224,7 @@ SlashCmdList["PLAYTIMER"] = function(input)
             HelperFunc.ShowUsageForVerb(commandVerb)
 
             if commandVerbParam == "" then
-                print("Current mode".. PTACharSavedVars.mode)
+                print("Current mode: ".. PTACharSavedVars.mode)
             end
 
             return
@@ -231,14 +244,9 @@ SlashCmdList["PLAYTIMER"] = function(input)
                 print("Total time allowed copied from account-wide settings, as character time is not set yet.")
             end
 
-            -- ? Busines decision to make: 
-            -- Should the elapsedTime on character-bound timer reset, or is this 
-            -- undesired? User feedback necessary
-
             PTACharSavedVars.mode = "character" -- Flip the mode PTACharSavedVars
 
             print("This character now has its own separate timer. Your other character timers remain unchanged.")
-            return
         end
 
         if commandVerbParam == "account" then
@@ -252,12 +260,10 @@ SlashCmdList["PLAYTIMER"] = function(input)
                 PTASavedVars.totalTime = PTACharSavedVars.totalTime
             end
 
-            return
+            print("Switching back to account-level timer.")
         end
-
     elseif commandVerb == "help" then
         HelperFunc.ShowHelp()
-        return
     elseif commandVerb == "alert" then
         print("ALERT")
     elseif commandVerb == "reset-timer" then
@@ -271,7 +277,6 @@ SlashCmdList["PLAYTIMER"] = function(input)
             print("Character timer set to 10h, time spent playing reset back to 0.")
         end
     end
-
 
 end
 
