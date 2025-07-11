@@ -44,8 +44,41 @@ end
 
 PlayTimerAddon:InitAddonFrame()
 
+-- Returns number of seconds remining on the timer
+function PlayTimerAddon:GetRemainingBalance()
+    local isCharacterMode = (PTACharSavedVars.mode == "character")
 
+    if isCharacterMode then
+        return PTACharSavedVars.totalTime - PTACharSavedVars.elapsedTime
+    end
 
+    return PTASavedVars.totalTime - PTASavedVars.elapsedTime
+end
+
+function PlayTimerAddon:DisplayRemainingTime()
+    local remainingTime = PlayTimerAddon:GetRemainingBalance()
+    local hours = math.floor(remainingTime / 3600)
+    local minutes = math.floor((remainingTime % 3600) / 60)
+    local seconds = remainingTime % 60
+
+    self.timerText:SetText(string.format("%02dh %02dm %02ds", hours, minutes, seconds))
+    self.timerFrame:Show()
+end
+
+function PlayTimerAddon:DecrementTimerBalance()
+    local isCharacterMode = (PTACharSavedVars.mode == "character")
+
+    local remainingTime = 0
+    if isCharacterMode then
+        PTACharSavedVars.elapsedTime = PTACharSavedVars.elapsedTime + 1
+        remainingTime = PTACharSavedVars.totalTime - PTACharSavedVars.elapsedTime
+    else
+        PTASavedVars.elapsedTime = PTASavedVars.elapsedTime + 1
+        remainingTime = PTASavedVars.totalTime - PTASavedVars.elapsedTime
+    end
+
+    return remainingTime
+end
 
 function PlayTimerAddon:UpdateTimerFrame(remainingTime)
     if remainingTime <= 0 then
@@ -95,24 +128,16 @@ end
 -- Updates elapsed time and displays the remaining time
 function PlayTimerAddon:UpdateAndDisplayTime()
     if self:IsTimerPaused() then
+        PlayTimerAddon:DisplayRemainingTime()
         return
     end
 
-    local isCharacterMode = (PTACharSavedVars.mode == "character")
-
-
-    local remainingTime = 0
-    if isCharacterMode then
-        PTACharSavedVars.elapsedTime = PTACharSavedVars.elapsedTime + 1
-        remainingTime = PTACharSavedVars.totalTime - PTACharSavedVars.elapsedTime
-    else
-        PTASavedVars.elapsedTime = PTASavedVars.elapsedTime + 1
-        remainingTime = PTASavedVars.totalTime - PTASavedVars.elapsedTime
-    end
-
+    local remainingTime = PlayTimerAddon:GetRemainingBalance()
     if remainingTime <= 0 then
         print("Your playtime is over!")
+        -- TODO: This is where notification channels will be handled.
     else
+        PlayTimerAddon:DecrementTimerBalance()
         self:UpdateTimerFrame(remainingTime)
     end
 end
@@ -178,7 +203,7 @@ SlashCmdList["PLAYTIMER"] = function(input)
             PTASavedVars.isPaused = not PTASavedVars.isPaused
         end
 
-        print("Timer paused:" .. tostring(PTACharSavedVars.isPaused))
+        print("Timer paused:" .. tostring(PlayTimerAddon:IsTimerPaused()))
     elseif commandVerb == "balance" then
         print("BALANCE")
     elseif commandVerb == "mode" then
