@@ -2,6 +2,9 @@ PTASavedVars = PTASavedVars or {}
 
 HelperFunc = HelperFunc or {}
 
+local HFLog = PrintHelper:New("PlayTimer", {255, 0, 255})
+HFLog:EnableTag(false)
+
 -- Parses the input string to convert it into total seconds
 function HelperFunc.parseTimeString(input)
     local hours = string.match(input, "(%d+)h") or 0
@@ -32,10 +35,19 @@ end
 
 function HelperFunc.ShowUsageForVerb(verb)
     if verb == "mode" then
-        print("Usage /playtimer mode account OR /playtimer mode character")
+        print(
+            HFLog:ColorText("Usage"),
+            HFLog:ColorText("/playtimer mode account", "#ff0000"),
+            HFLog:ColorText("OR"),
+            HFLog:ColorText("/playtimer mode character", "#ff0000")
+        )
         return
     elseif verb == "add" then
-        print("Usage: /playtimer add <time> (e.g., 10h30m10s, 10h, 30m)")
+        print(
+            HFLog:ColorText("Usage:"),
+            HFLog:ColorText("/playtimer add <time>", "#ff0000"),
+            HFLog:ColorText("(e.g., 10h30m10s, 10h, 30m)")
+        )
         return
     end
 
@@ -45,10 +57,34 @@ function HelperFunc.ShowUsageForVerb(verb)
 end
 
 function HelperFunc.ShowHelp()
-    print("Usage: /playtimer <time> (e.g., 10h30m10s, 10h, 30m)")
-    print(" /playtimer add <time> - add amount of <time> to your allowance")
-    print(" /playtimer reduce <time> - reduce the amount of <time> allowance")
-    print(" /playtimer pause - Pauses play timer")
-    print(" /playtimer mode account||character - switches between time allowance per account/character")
 
+    print(
+        HFLog:GetFormattedTag(),
+        HFLog:ColorText("Slash commands")
+    )
+
+    print(
+        HFLog:ColorText(" /playtimer <time>", "#ff0000"),
+        HFLog:ColorText("(e.g., 10h30m10s, 10h, 30m) - sets total play time allowance.")
+    )
+
+    print(
+        HFLog:ColorText(" /playtimer add <time>", "#ff0000"),
+        HFLog:ColorText("- add amount of <time> to your allowance")
+    )
+
+    print(
+        HFLog:ColorText(" /playtimer reduce <time>", "#ff0000"),
+        HFLog:ColorText("- reduce the amount of <time> allowance")
+    )
+
+    print(
+        HFLog:ColorText(" /playtimer pause", "#ff0000"),
+        HFLog:ColorText("- Pauses play timer")
+    )
+
+    print(
+        HFLog:ColorText(" /playtimer mode account||character", "#ff0000"),
+        HFLog:ColorText("- switches between time allowance per account/character")
+    )
 end
