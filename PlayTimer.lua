@@ -1,7 +1,7 @@
 -- Define the addon namespace
 local PlayTimerAddon = {}
 
-
+local Logger = PrintHelper:New("PlayTimer", {255, 255, 0})
 
 -- Create a small timer frame for displaying remaining time
 function PlayTimerAddon:InitAddonFrame()
@@ -32,8 +32,6 @@ function PlayTimerAddon:InitAddonFrame()
         local point, _, _, x, y = self:GetPoint()
         print("user placed x=" .. x .. ", y=" .. y)
     end)
-
-    
 
     self.timerText = self.timerFrame:CreateFontString(nil,
         "OVERLAY", 
@@ -179,7 +177,9 @@ SlashCmdList["PLAYTIMER"] = function(input)
         return
     end
 
-    print("Command verb: ".. commandVerb)
+    print(
+        Logger:ColorText("Command verb: ".. commandVerb, "blue")
+    )
 
     if not HelperFunc.isInList(commandVerbs, string.lower(commandVerb)) then
         print("Command verb not recognized... pass this straight to SetPlayTime() that does its own check.")
@@ -205,7 +205,13 @@ SlashCmdList["PLAYTIMER"] = function(input)
             PTASavedVars.totalTime = PTASavedVars.totalTime + timeToAdd
         end
 
-        print("Time added. Enjoy it, while it lasts!")
+        print(
+            Logger:GetFormattedTag(),
+            Logger:ColorText(
+                "Play time added. Enjoy it, while it lasts!", "yellow"
+            )
+        )
+
         -- use same validation logic as in SetPlayTime() to decide what to do
     elseif commandVerb == "reduce" then
         print("REDUCE")
@@ -290,6 +296,9 @@ function PlayTimerAddon:OnLoad()
     self:SafelyInitializeSavedVars()
     self.timerFrame:SetPoint("CENTER", UIParent, "CENTER")
     self:RegisterTimer()
+
+    -- Initialize general color chat logger
+    --self.Logger = PrintHelper:New("PlayTimer", {255, 255, 0})
 end
 
 
