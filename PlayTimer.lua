@@ -1,7 +1,7 @@
 -- Define the addon namespace
 local PlayTimerAddon = {}
-
 local Logger = PrintHelper:New("PlayTimer", {255, 255, 0})
+
 
 -- Create a small timer frame for displaying remaining time
 function PlayTimerAddon:InitAddonFrame()
@@ -11,8 +11,10 @@ function PlayTimerAddon:InitAddonFrame()
     self.timerFrame:SetScript("OnEvent", function(self, event, name)
         if name == PlayTimerAddon.addonName and event == "ADDON_LOADED" then
             PlayTimerAddon:OnLoad();
-
-            print("PlayTimer Addon Loaded...")
+            print(
+                Logger:GetFormattedTag(),
+                Logger:ColorText("Addon loaded.")
+            )
         end
         self:UnregisterEvent("ADDON_LOADED")
     end)
@@ -30,7 +32,6 @@ function PlayTimerAddon:InitAddonFrame()
     self.timerFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local point, _, _, x, y = self:GetPoint()
-        print("user placed x=" .. x .. ", y=" .. y)
     end)
 
     self.timerText = self.timerFrame:CreateFontString(nil,
@@ -41,6 +42,7 @@ function PlayTimerAddon:InitAddonFrame()
 end
 
 PlayTimerAddon:InitAddonFrame()
+
 
 -- Returns number of seconds remining on the timer
 function PlayTimerAddon:GetRemainingBalance()
@@ -53,15 +55,27 @@ function PlayTimerAddon:GetRemainingBalance()
     return PTASavedVars.totalTime - PTASavedVars.elapsedTime
 end
 
+
+-- Returns number of seconds elapsed on the timer
+function PlayTimerAddon:GetElapsedBalance()
+    local isCharacterMode = (PTACharSavedVars.mode == "character")
+
+    if isCharacterMode then
+        return PTACharSavedVars.elapsedTime
+    end
+
+    return PTASavedVars.elapsedTime
+end
+
+
 function PlayTimerAddon:DisplayRemainingTime()
     local remainingTime = PlayTimerAddon:GetRemainingBalance()
-    local hours = math.floor(remainingTime / 3600)
-    local minutes = math.floor((remainingTime % 3600) / 60)
-    local seconds = remainingTime % 60
+    local timeString = HelperFunc.SecondToTimeString(remainingTime, " ")
 
-    self.timerText:SetText(string.format("%02dh %02dm %02ds", hours, minutes, seconds))
+    self.timerText:SetText(timeString)
     self.timerFrame:Show()
 end
+
 
 function PlayTimerAddon:DecrementTimerBalance()
     local isCharacterMode = (PTACharSavedVars.mode == "character")
@@ -82,13 +96,13 @@ function PlayTimerAddon:UpdateTimerFrame(remainingTime)
     if remainingTime <= 0 then
         self.timerFrame:Hide()
     else
-        local hours = math.floor(remainingTime / 3600)
-        local minutes = math.floor((remainingTime % 3600) / 60)
-        local seconds = remainingTime % 60
-        self.timerText:SetText(string.format("%02dh %02dm %02ds", hours, minutes, seconds))
+        local remainingTimeString = HelperFunc.SecondToTimeString(remainingTime, " ")
+
+        self.timerText:SetText(remainingTimeString)
         self.timerFrame:Show()
     end
 end
+
 
 -- Returns Timer Paused status based on current account/character mode
 function PlayTimerAddon:IsTimerPaused()
@@ -105,9 +119,7 @@ function PlayTimerAddon:SetPlayTime(input)
 
     local isCharacterMode = (PTACharSavedVars.mode == "character")
 
-    print("SetPlayTime input", input)
     local totalTime = HelperFunc.parseTimeString(input)
-    print("totalTime ".. totalTime)
     if totalTime > 0 then
 
         if isCharacterMode then
@@ -116,9 +128,19 @@ function PlayTimerAddon:SetPlayTime(input)
             PTASavedVars.totalTime = totalTime
         end
 
-        print("PlayTimer set to: " .. input)
+        print(
+            Logger:GetFormattedTag(),
+            Logger:ColorText("Timer allowance set to"),
+            Logger:ColorText(input, "green")
+        )
     else
-        print("Invalid time format. Please use 10h30m10s, 10h, or 30m.")
+        print(
+            Logger:GetFormattedTag(),
+            Logger:ColorText("Invalid time format. Use format such as"),
+            Logger:ColorText("10h30m10s, 10h,", "green"),
+            Logger:ColorText("or"),
+            Logger:ColorText("30m", "green")
+        )
     end
 end
 
@@ -132,13 +154,17 @@ function PlayTimerAddon:UpdateAndDisplayTime()
 
     local remainingTime = PlayTimerAddon:GetRemainingBalance()
     if remainingTime <= 0 then
-        print("Your playtime is over!")
+        print(
+            Logger:GetFormattedTag(),
+            Logger:ColorText("Your playtime is over!", "red")
+        )
         -- TODO: This is where notification channels will be handled.
     else
         PlayTimerAddon:DecrementTimerBalance()
         self:UpdateTimerFrame(remainingTime)
     end
 end
+
 
 -- Command handler for /playtimer 
 SLASH_PLAYTIMER1 = "/playtimer"
@@ -171,18 +197,13 @@ SlashCmdList["PLAYTIMER"] = function(input)
 
     local commandVerb = args[1]
     if not commandVerb then
-        print("Usage: /playtimer <time> (e.g., 10h30m10s, 10h, 30m)")
-        print("Usage: /playtimer add|reduce <time>")
-        print("Use /playtimer help to print a complete list of commands.")
+        HelperFunc.ShowHelpForNoCommandVerbProvided()
         return
     end
 
-    print(
-        Logger:ColorText("Command verb: ".. commandVerb, "blue")
-    )
-
+    -- When command verb is not in the list of allowed command verbs, assume 
+    -- user passed in time directly and try to set it. It validates internally.
     if not HelperFunc.isInList(commandVerbs, string.lower(commandVerb)) then
-        print("Command verb not recognized... pass this straight to SetPlayTime() that does its own check.")
         PlayTimerAddon:SetPlayTime(commandVerb)
         return
     end
@@ -192,7 +213,6 @@ SlashCmdList["PLAYTIMER"] = function(input)
     local commandVerbParam = HelperFunc.NormalizeString(args[2])
 
     if commandVerb == "add" then
-        print("ADD ")
         local timeToAdd = HelperFunc.parseTimeString(commandVerbParam)
         if commandVerbParam == "" or timeToAdd <= 0 then
             HelperFunc.ShowUsageForVerb(commandVerb)
@@ -208,13 +228,48 @@ SlashCmdList["PLAYTIMER"] = function(input)
         print(
             Logger:GetFormattedTag(),
             Logger:ColorText(
-                "Play time added. Enjoy it, while it lasts!", "yellow"
+                "Play time added. Enjoy it, while it lasts!"
             )
         )
 
         -- use same validation logic as in SetPlayTime() to decide what to do
     elseif commandVerb == "reduce" then
-        print("REDUCE")
+        local timeToReduce = HelperFunc.parseTimeString(commandVerbParam)
+
+        if timeToReduce <= 0 then
+            print(
+                Logger:GetFormattedTag(),
+                Logger:ColorText(
+                    "Provide a reasonable amount of time (e.g. 10m, 1h, 1h30m, etc.)"
+                )
+            )
+            return
+        end
+
+        local remainingTime = PlayTimerAddon:GetRemainingBalance()
+
+        if remainingTime - timeToReduce < 0 then
+            print(
+                Logger:GetFormattedTag(),
+                Logger:ColorText(
+                    "Cannot reduce the time. You do not have enough time remining."
+                )
+            )
+            return
+        end
+
+        if isCharacterMode then
+            PTACharSavedVars.totalTime = PTACharSavedVars.totalTime - timeToReduce
+        else
+            PTASavedVars.totalTime = PTASavedVars.totalTime - timeToReduce
+        end
+
+        print(
+            Logger:GetFormattedTag(),
+            Logger:ColorText("Play time allowance reduced.")
+        )
+
+
     elseif commandVerb == "pause" then
         if isCharacterMode then
             PTACharSavedVars.isPaused = not PTACharSavedVars.isPaused
@@ -222,15 +277,40 @@ SlashCmdList["PLAYTIMER"] = function(input)
             PTASavedVars.isPaused = not PTASavedVars.isPaused
         end
 
-        print("Timer paused:" .. tostring(PlayTimerAddon:IsTimerPaused()))
+        -- Let user know what's the sitrep
+        if PlayTimerAddon:IsTimerPaused() then
+            print(Logger:GetFormattedTag(), Logger:ColorText("Timer paused"))
+        else
+            print(Logger:GetFormattedTag(), Logger:ColorText("Timer un-paused. The clock is ticking!"))
+        end
+
     elseif commandVerb == "balance" then
-        print("BALANCE")
+        local timeStringRemaining = HelperFunc.SecondToTimeString(
+            PlayTimerAddon:GetRemainingBalance(), " "
+        )
+
+        local timeStringElapsed = HelperFunc.SecondToTimeString(
+            PlayTimerAddon:GetElapsedBalance(), " "
+        )
+
+        print(
+            Logger:GetFormattedTag(),
+            Logger:ColorText("You still have"),
+            Logger:ColorText(timeStringRemaining, "green"),
+            Logger:ColorText("to play. You have played for"),
+            Logger:ColorText(timeStringElapsed, "green"),
+            Logger:ColorText("already.")
+        )
+
     elseif commandVerb == "mode" then
         if commandVerbParam ~= "account" and commandVerbParam ~= "character" then
             HelperFunc.ShowUsageForVerb(commandVerb)
 
             if commandVerbParam == "" then
-                print("Current mode: ".. PTACharSavedVars.mode)
+                print(
+                    Logger:GetFormattedTag(),
+                    Logger:ColorText("Mode: ".. PTACharSavedVars.mode)
+                )
             end
 
             return
@@ -238,7 +318,10 @@ SlashCmdList["PLAYTIMER"] = function(input)
 
         local currentValue = PTACharSavedVars.mode
         if currentValue == commandVerbParam then
-            print("Timer mode is already set this way.")
+            print(
+                Logger:GetFormattedTag(),
+                Logger:ColorText("Timer mode is already set this way.")
+            )
             return
         end
 
@@ -247,12 +330,21 @@ SlashCmdList["PLAYTIMER"] = function(input)
             -- from the account SavedVar
             if PTACharSavedVars.totalTime == 0 then
                 PTACharSavedVars.totalTime = PTASavedVars.totalTime
-                print("Total time allowed copied from account-wide settings, as character time is not set yet.")
+                print(
+                    Logger:GetFormattedTag(),
+                    Logger:ColorText(
+                        "Total time allowed copied from account-wide settings, as character time is not set yet."
+                    )
+                )
             end
 
             PTACharSavedVars.mode = "character" -- Flip the mode PTACharSavedVars
-
-            print("This character now has its own separate timer. Your other character timers remain unchanged.")
+            print(
+                Logger:GetFormattedTag(),
+                Logger:ColorText(
+                    "This character now has its own separate timer. Your other character timers remain unchanged."
+                )
+            )
         end
 
         if commandVerbParam == "account" then
@@ -261,12 +353,20 @@ SlashCmdList["PLAYTIMER"] = function(input)
 
             -- If account-wide allocation is exhausted, copy character-level allowance & tell the user
             if PTASavedVars.elapsedTime >= PTASavedVars.totalTime then
-                print("Account-level time allowance is already exhausted. Copying current allowance to account allowance and switching the mode to account tracking.")
+                print(
+                    Logger:GetFormattedTag(),
+                    Logger:ColorText(
+                        "Account-level time allowance is already exhausted. Copying current allowance to account allowance and switching the mode to account tracking."
+                    )
+                )
                 PTASavedVars.elapsedTime = PTACharSavedVars.elapsedTime
                 PTASavedVars.totalTime = PTACharSavedVars.totalTime
             end
 
-            print("Switching back to account-level timer.")
+            print(
+                Logger:GetFormattedTag(),
+                Logger:ColorText("Switching back to account-level timer.")
+            )
         end
     elseif commandVerb == "help" then
         HelperFunc.ShowHelp()
@@ -276,17 +376,23 @@ SlashCmdList["PLAYTIMER"] = function(input)
         if isCharacterMode then
             PTACharSavedVars.totalTime = 36000
             PTACharSavedVars.elapsedTime = 0
-            print("Character timer set to 10h, time spent playing reset back to 0.")
+            print(
+                Logger:GetFormattedTag(),
+                Logger:ColorText("Character", "green"),
+                Logger:ColorText("timer set to 10h, time spent playing reset back to 0.", "red")
+            )
         else
             PTASavedVars.totalTime = 36000
             PTASavedVars.elapsedTime = 0
-            print("Character timer set to 10h, time spent playing reset back to 0.")
+            print(
+                Logger:GetFormattedTag(),
+                Logger:ColorText("Account", "green"),
+                Logger:ColorText("timer set to 10h, time spent playing reset back to 0.", "red")
+            )
         end
     end
 
 end
-
-
 
 
 -- Addon initialization
