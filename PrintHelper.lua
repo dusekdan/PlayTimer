@@ -39,7 +39,7 @@ end
 function PrintHelper:GetFormattedTag()
     return self:ColorText(
         "[" .. self.tag ..  "]",
-        "orange"
+        "#00B7FF"
     )
 end
 
